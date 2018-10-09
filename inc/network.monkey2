@@ -5,18 +5,20 @@ Namespace koreTcp
 ' A simple TCP listen server
 Class Server
 	
-	Field _socket:Socket
-	
-	Field _acceptFiber:Fiber
-	Field _acceptSleep:Float = 0.25
-	
-	Field _maxClients:UInt
-	Field _clientCount:UInt
-	Field _clients:Client[]
-	
 	Field GotPacketHook:Void( packet:Packet, client:Client )
 	Field NewClientHook:Void( client:Client )
 	Field DropClientHook:Void( client:Client, reason:String )
+	
+	Private
+		Field _socket:Socket
+		
+		Field _acceptFiber:Fiber
+		Field _acceptSleep:Float = 0.25
+		
+		Field _maxClients:UInt
+		Field _clientCount:UInt
+		Field _clients:Client[]
+	Public
 	
 	Property AcceptSleep:Float()
 		
@@ -227,15 +229,20 @@ End
 ' Client base
 Class ClientBase
 	
-	Field _id:UInt
+	Private
 	
-	Field _socket:Socket
-	Field _stream:Stream
-	
-	Field _readFiber:Fiber
-	
-	Field _packetConstructor:PacketConstructor
-	Field _packet:Packet
+		Field _id:UInt
+		
+		Field _socket:Socket
+		Field _stream:Stream
+		
+		Field _readFiber:Fiber
+		
+		Field _packetConstructor:PacketConstructor
+		Field _packet:Packet
+		
+		Field _customProperties:Map<String,Variant>
+	Public
 	
 	Property ID:UInt()
 		
@@ -264,6 +271,31 @@ Class ClientBase
 	Property Packet:Packet()
 		
 		Return _packet
+	End
+	
+	Method SetProperty( key:Int, value:Variant )
+		
+		SetProperty( String( key ), value )
+	End
+	
+	Method SetProperty( key:String, value:Variant )
+		
+		If Not _customProperties Then
+			
+			_customProperties = New Map<String, Variant>
+		Endif
+		
+		_customProperties.Set( key, value )
+	End
+	
+	Method GetProperty:Variant( key:String )
+		
+		If Not _customProperties Then
+			
+			_customProperties = New Map<String, Variant>
+		Endif
+		
+		Return _customProperties.Get( key )
 	End
 	
 	Method NewPacket:Packet( packetID:UByte )

@@ -6,9 +6,12 @@ Class PacketConstructor
 	
 	Field CompleteHook:Void( packet:Packet, fromID:UInt )
 	
-	Field _step:UInt
-	Field _packet:Packet
-	Field _expectedSize:UInt
+	Private
+		
+		Field _step:UInt
+		Field _packet:Packet
+		Field _expectedSize:UInt
+	Public
 	
 	Property ExpectedSize:UInt()
 		
@@ -66,17 +69,28 @@ End
 'Either a received packet or packet about to be send
 Class Packet
 	
-	Global DefaultSize:Int = 512'Default size for every buffer
-	Global _sizeOffset:UInt = 1	'Where in the buffer is size stored?
-	Global _dataOffset:UInt = 3	'Where does the packet data start?
-	
 	Field SendHook:Void( data:DataBuffer, size:UInt )
 	Field SendToHook:Void( data:DataBuffer, size:UInt, toID:UInt )
 	
-	Field _id:UByte
-	Field _buffer:DataBuffer
-	Field _offset:UInt	'Next write position (in bytes)
-	Field _lastOffset:UInt	'Previous write size (in bytes)
+	Private
+	
+		Global DefaultSize:Int = 512	'Default size for every buffer
+		Global _sizeOffset:UInt = 1	'Where in the buffer is size stored?
+		Global _dataOffset:UInt = 3	'Where does the packet data start?
+		
+		Field _id:UByte
+		Field _buffer:DataBuffer
+		Field _offset:UInt	'Next write position (in bytes)
+		Field _lastOffset:UInt	'Previous write size (in bytes)
+		
+		Method AddOffset( s:UByte )
+			
+			_lastOffset = _offset
+			_offset += s
+			
+			'Print "Wrote "+(_offset-_lastOffset)+" at "+_lastOffset
+		End
+	Public
 	
 	Property ID:UByte()
 		
@@ -128,6 +142,7 @@ Class Packet
 	End
 	
 	Method Send()
+		
 		'Update size
 		_buffer.PokeUShort( _sizeOffset, _offset )
 		
@@ -138,13 +153,5 @@ Class Packet
 		
 		Send()
 		SendToHook( _buffer, _offset, toID )
-	End
-	
-	Method AddOffset( s:UByte )
-		
-		_lastOffset = _offset
-		_offset += s
-		
-		'Print "Wrote "+(_offset-_lastOffset)+" at "+_lastOffset
 	End
 End
