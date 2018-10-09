@@ -50,6 +50,7 @@ Class Server
 	End
 	
 	Method New( port:Int, maxClients:Int = 32 )
+		
 		Self.Listen( port, maxClients )
 	End
 	
@@ -75,7 +76,6 @@ Class Server
 		Local newID:UInt
 		
 		While Not _socket.Closed
-			'If _clientCount>=_maxClients Then Return
 			
 			' Check and pause here until new clients
 			newSocket = _socket.Accept() ' Blocking
@@ -86,10 +86,10 @@ Class Server
 				Continue
 			Endif
 			
-			' Find a new empty client ID for our client
+			' Find a new ID for our new client
 			newID = EmptyClientID()
 			
-			If newID Then
+			If newID > 0 Then
 				
 				_clientCount += 1
 				
@@ -101,10 +101,9 @@ Class Server
 				_clients[newID]._readFiber = New Fiber( _clients[newID].ReadLoop )
 				
 				'Hooks for new client
-				_clients[newID]._packetConst.CompleteHook += Self.NewPacketProcessor
+				_clients[newID]._packetConstructor.CompleteHook += Self.NewPacketProcessor
 				
 				NewClientHook( _clients[newID] )
-				
 			Else
 				
 				newSocket.Close()
@@ -116,16 +115,18 @@ Class Server
 	End
 	
 	Method NewPacketProcessor( packet:Packet, fromID:UInt )
+		
 		GotPacketHook( packet, GetClient( fromID ) )
 	End
 	
 	Method SendPacketTo( data:DataBuffer, size:UInt, toID:UInt )
-		GetClient(toID).SendBuffer( data, size )
+		
+		GetClient( toID ).SendBuffer( data, size )
 	End
 	
 	Method EmptyClientID:UInt()
 		
-		For Local i:UInt=1 Until _clients.Length
+		For Local i:UInt = 1 Until _clients.Length
 			
 			If Not _clients[i] Then Return i
 		Next
@@ -143,82 +144,20 @@ Class Server
 	' The server client connections
 	Class Client Extends ClientBase
 		
-		Field _id:UInt
-		Field _socket:Socket
-		Field _stream:SocketStream
-		Field _packetConst:PacketConst
 		Field _server:Server
-		Field _packet:Packet
-		Field _readFiber:Fiber
 		
 		Property Server:Server()
 			
 			Return _server
 		Setter( server:Server )
 			
-			_server=server
-		End
-		
-		Property Address:String()
-			
-			Return _socket.Address
-		End
-		
-		Property PeerAddress:String()
-			
-			Return _socket.PeerAddress
-		End
-		
-		Property ID:UInt()
-			
-			Return _id
-		End
-		
-		Property Connected:Bool()
-			
-			If Not _socket Or Not _stream Then Return False
-			If _socket.Closed Then Return False
-			If _stream.Eof Then Return False
-			
-			Return True
-		End
-		
-		Property Packet:Packet()
-			
-			Return _packet
+			_server = server
 		End
 		
 		Method New( id:UInt )
 			
 			Self._id = id
-			_packetConst = New PacketConst
-		End
-		
-		Method NewPacket:Packet( packetID:UByte )
-			
-			_packet = New Packet( packetID )
-			Return _packet
-		End
-		
-		Method ReadLoop()
-			
-			Local data:DataBuffer
-			Local readCount:Int
-			
-			Repeat
-				
-				data = New DataBuffer( _packetConst.ExpectedSize )
-				readCount = _stream.Read( data, 0, _packetConst.ExpectedSize )
-				
-				If readCount>0 Then
-					
-					_packetConst.Construct( data, _packetConst.ExpectedSize, ID )
-				Else
-					
-					Close()
-				Endif
-				
-			Until Not Connected
+			_packetConstructor = New PacketConstructor
 		End
 		
 		Method SendPacket()
@@ -228,26 +167,14 @@ Class Server
 			_packet.SendTo( ID )
 		End
 		
-		Method SendBuffer( data:DataBuffer, size:UInt )
+		Method Close( reason:String = "" ) Override
 			
-			Self._stream.Write( data, 0, size )
-		End
-		
-		Method Close( reason:String = "" )
+			Super.Close( reason )
 			
 			_server.DropClientHook( Self, reason )
-			_server._clientCount-=1
+			_server._clientCount -= 1
 			
-			If Connected Then
-				
-				If _socket Then _socket.Close()
-				If _stream Then _stream.Close()
-			Endif
-			
-			_socket = Null
-			_stream = Null
-			
-			_server._clients[ID]=Null
+			_server._clients[ID] = Null
 		End
 	End
 End
@@ -255,44 +182,12 @@ End
 ' A simple TCP client
 Class Client Extends ClientBase
 	
-	Field _socket:Socket
-	Field _stream:Stream
-	
-	Field _packetConst:PacketConst
-	Field _packet:Packet
-	
-	Field _readFiber:Fiber
-	
 	Field GotPacketHook:Void( packet:Packet )
-	
-	Property Packet:Packet()
-		
-		Return _packet
-	End
-	
-	Property Connected:Bool()
-		
-		If Not _socket Or Not _stream Then Return False
-		If _socket.Closed Then Return False
-		If _stream.Eof Then Return False
-		
-		Return True
-	End
-	
-	Property Address:String()
-		
-		Return _socket.Address
-	End
-	
-	Property PeerAddress:String()
-		
-		Return _socket.PeerAddress
-	End
 	
 	Method New()
 		
-		_packetConst = New PacketConst
-		_packetConst.CompleteHook = NewPacketProcessor
+		_packetConstructor = New PacketConstructor
+		_packetConstructor.CompleteHook = NewPacketProcessor
 	End
 	
 	Method New( host:String, port:UInt )
@@ -322,24 +217,53 @@ Class Client Extends ClientBase
 		GotPacketHook( packet )
 	End
 	
-	Method ReadLoop()
+	Method SendPacket()
 		
-		Local data:DataBuffer
-		Local readCount:Int
+		_packet.SendHook += SendBuffer
+		_packet.Send()
+	End
+End
+
+' Client base
+Class ClientBase
+	
+	Field _id:UInt
+	
+	Field _socket:Socket
+	Field _stream:Stream
+	
+	Field _readFiber:Fiber
+	
+	Field _packetConstructor:PacketConstructor
+	Field _packet:Packet
+	
+	Property ID:UInt()
 		
-		Repeat
-			
-			data = New DataBuffer( _packetConst.ExpectedSize )
-			readCount = _stream.Read( data, 0, _packetConst.ExpectedSize )
-			
-			If readCount > 0 Then
-				
-				_packetConst.Construct( data, _packetConst.ExpectedSize, 0 )
-			Else
-				
-				Close()
-			Endif
-		Until Not Connected
+		Return _id
+	End
+	
+	Property Connected:Bool()
+		
+		If Not _socket Or Not _stream Then Return False
+		If _socket.Closed Then Return False
+		If _stream.Eof Then Return False
+		
+		Return True
+	End
+	
+	Property Address:String()
+		
+		Return _socket.Address
+	End
+	
+	Property PeerAddress:String()
+		
+		Return _socket.PeerAddress
+	End
+	
+	Property Packet:Packet()
+		
+		Return _packet
 	End
 	
 	Method NewPacket:Packet( packetID:UByte )
@@ -348,19 +272,8 @@ Class Client Extends ClientBase
 		Return _packet
 	End
 	
-	Method SendPacket()
+	Method Close( reason:String = "" ) Virtual
 		
-		_packet.SendHook += SendBuffer
-		_packet.Send()
-	End
-	
-	Method SendBuffer( data:DataBuffer, size:UInt )
-		
-		If Not Connected Then Return
-		_stream.Write( data, 0, size )
-	End
-	
-	Method Close()
 		
 		If _stream Then _stream.Close()
 		If _socket Then _socket.Close()
@@ -368,10 +281,30 @@ Class Client Extends ClientBase
 		_stream = Null
 		_socket = Null
 	End
-End
-
-' Client base
-Class ClientBase
 	
+	Method ReadLoop()
+		
+		Local data:DataBuffer
+		Local readCount:Int
+		
+		Repeat
+			
+			data = New DataBuffer( _packetConstructor.ExpectedSize )
+			readCount = _stream.Read( data, 0, _packetConstructor.ExpectedSize )
+			
+			If readCount > 0 Then
+				
+				_packetConstructor.Construct( data, _packetConstructor.ExpectedSize, ID )
+			Else
+				
+				Close()
+			Endif
+		Until Not Connected
+	End
 	
+	Method SendBuffer( data:DataBuffer, size:UInt )
+		
+		If Not Connected Then Return
+		_stream.Write( data, 0, size )
+	End
 End

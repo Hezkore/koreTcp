@@ -1,8 +1,8 @@
 Namespace koreTcp
 
-'Packet constructor
-'Feed stream data into this
-Class PacketConst
+' Packet constructor
+' Feed stream data into this
+Class PacketConstructor
 	
 	Field CompleteHook:Void( packet:Packet, fromID:UInt )
 	
@@ -12,8 +12,8 @@ Class PacketConst
 	
 	Property ExpectedSize:UInt()
 		
-		If _step=0 Then Return Packet._sizeOffset
-		If _step=1 Then Return Packet._dataOffset-Packet._sizeOffset
+		If _step = 0 Then Return Packet._sizeOffset
+		If _step = 1 Then Return Packet._dataOffset - Packet._sizeOffset
 		
 		Return _expectedSize - Packet._dataOffset
 	End
@@ -66,7 +66,7 @@ End
 'Either a received packet or packet about to be send
 Class Packet
 	
-	Global DefaultSize:Int = 512	'Default size for every buffer
+	Global DefaultSize:Int = 512'Default size for every buffer
 	Global _sizeOffset:UInt = 1	'Where in the buffer is size stored?
 	Global _dataOffset:UInt = 3	'Where does the packet data start?
 	
@@ -95,10 +95,10 @@ Class Packet
 			_buffer.PokeUShort( _sizeOffset, _buffer.Length )
 			
 			'Prepare for buffer offset for data!
-			_offset=_dataOffset
+			_offset = _dataOffset
 		Else
 			'Prepare for buffer size
-			_offset=_sizeOffset
+			_offset = _sizeOffset
 		Endif
 		
 	End

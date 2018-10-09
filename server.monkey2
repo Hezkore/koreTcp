@@ -16,10 +16,9 @@ Function Main()
 	
 	New AppInstance
 	
-	'Create a server
+	'Create a server on port 4012 for one client
 	server = New Server
-	
-	If server.Listen( 4012 ) Then
+	If server.Listen( 4012, 1 ) Then
 		
 		Print "Server @" + server.Address + " listening"
 	Else
