@@ -1,5 +1,8 @@
 Namespace koreTcp
 
+#Import "<libc>"
+Using libc..
+
 ' Packet constructor
 ' Feed stream data into this
 Class PacketConstructor
@@ -117,33 +120,9 @@ Class Packet
 		
 	End
 	
-	Method WriteUByte( v:UByte )
-		
-		_buffer.PokeUByte( _offset, v )
-		AddOffset( 1 )
-	End
-	
-	Method WriteUShort( v:UShort )
-		
-		_buffer.PokeUShort( _offset, v )
-		AddOffset( 2 )
-	End
-	
-	Method ReadUByte:UByte()
-		
-		AddOffset( 1 )
-		Return _buffer.PeekUByte( _lastOffset )
-	End
-	
-	Method ReadUShort:UShort()
-		
-		AddOffset( 2 )
-		Return _buffer.PeekUShort( _lastOffset )
-	End
-	
 	Method Send()
 		
-		'Update size
+		'Update size value
 		_buffer.PokeUShort( _sizeOffset, _offset )
 		
 		SendHook( _buffer, _offset )
@@ -153,5 +132,147 @@ Class Packet
 		
 		Send()
 		SendToHook( _buffer, _offset, toID )
+	End
+	
+	' Writing
+	
+	Method WriteUByte( v:UByte )
+		
+		_buffer.PokeUByte( _offset, v )
+		AddOffset( sizeof( v ) )
+	End
+	
+	Method WriteByte( v:Byte )
+		
+		_buffer.PokeByte( _offset, v )
+		AddOffset( sizeof( v ) )
+	End
+	
+	Method WriteUShort( v:UShort )
+		
+		_buffer.PokeUShort( _offset, v )
+		AddOffset( sizeof( v ) )
+	End
+	
+	Method WriteShort( v:Short )
+		
+		_buffer.PokeShort( _offset, v )
+		AddOffset( sizeof( v ) )
+	End
+	
+	Method WriteUInt( v:UInt )
+		
+		_buffer.PokeUInt( _offset, v )
+		AddOffset( sizeof( v ) )
+	End
+	
+	Method WriteInt( v:Int )
+		
+		_buffer.PokeInt( _offset, v )
+		AddOffset( sizeof( v ) )
+	End
+	
+	Method WriteULong( v:ULong )
+		
+		_buffer.PokeULong( _offset, v )
+		AddOffset( sizeof( v ) )
+	End
+	
+	Method WriteLong( v:Long )
+		
+		_buffer.PokeLong( _offset, v )
+		AddOffset( sizeof( v ) )
+	End
+	
+	Method WriteFloat( v:Float )
+		
+		_buffer.PokeFloat( _offset, v )
+		AddOffset( sizeof( v ) )
+	End
+	
+	Method WriteDouble( v:Double )
+		
+		_buffer.PokeDouble( _offset, v )
+		AddOffset( sizeof( v ) )
+	End
+	
+	Method WriteString( str:String )
+		
+		' Write length of the string
+		WriteUShort( str.Length )
+		
+		_buffer.PokeString( _offset, str )
+		AddOffset( str.Length )
+	End
+	
+	' Reading
+	
+	Method ReadUByte:UByte()
+		
+		AddOffset( sizeof( UByte( 0 ) ) )
+		Return _buffer.PeekUByte( _lastOffset )
+	End
+	
+	Method ReadByte:Byte()
+		
+		AddOffset( sizeof( Byte( 0 ) ) )
+		Return _buffer.PeekByte( _lastOffset )
+	End
+	
+	Method ReadUShort:UShort()
+		
+		AddOffset( sizeof( UShort( 0 ) ) )
+		Return _buffer.PeekUShort( _lastOffset )
+	End
+	
+	Method ReadShort:Short()
+		
+		AddOffset( sizeof( Short( 0 ) ) )
+		Return _buffer.PeekShort( _lastOffset )
+	End
+	
+	Method ReadUInt:UInt()
+		
+		AddOffset( sizeof( UInt( 0 ) ) )
+		Return _buffer.PeekUInt( _lastOffset )
+	End
+	
+	Method ReadInt:Int()
+		
+		AddOffset( sizeof( Int( 0 ) ) )
+		Return _buffer.PeekInt( _lastOffset )
+	End
+	
+	Method ReadULong:ULong()
+		
+		AddOffset( sizeof( ULong( 0 ) ) )
+		Return _buffer.PeekULong( _lastOffset )
+	End
+	
+	Method ReadLong:Long()
+		
+		AddOffset( sizeof( Long( 0 ) ) )
+		Return _buffer.PeekLong( _lastOffset )
+	End
+	
+	Method ReadFloat:Float()
+		
+		AddOffset( sizeof( Float( 0 ) ) )
+		Return _buffer.PeekFloat( _lastOffset )
+	End
+	
+	Method ReadDouble:Double()
+		
+		AddOffset( sizeof( Double( 0 ) ) )
+		Return _buffer.PeekDouble( _lastOffset )
+	End
+	
+	Method ReadString:String()
+		
+		' Read the length of the string
+		Local strLength := ReadUShort()
+		
+		AddOffset( strLength )
+		Return _buffer.PeekString( _lastOffset, strLength )
 	End
 End
