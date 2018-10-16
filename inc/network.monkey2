@@ -136,13 +136,6 @@ Class Server
 		Return 0
 	End
 	
-	Method DropClient( id:UInt, reason:String="" )
-		
-		If Not _clients[id] Then Return
-		
-		GetClient( id ).Close( reason )
-	End
-	
 	' The server client connections
 	Class Client Extends ClientBase
 		
@@ -162,7 +155,7 @@ Class Server
 			_packetConstructor = New PacketConstructor
 		End
 		
-		Method SendPacket()
+		Method SendPacket() Override
 			
 			'Always to self/own ID!
 			_packet.SendToHook += _server.SendPacketTo
@@ -176,6 +169,10 @@ Class Server
 			_server.DropClientHook( Self, reason )
 			_server._clientCount -= 1
 			
+			If _customProperties Then _customProperties.Clear()
+			
+			_customProperties = Null
+			
 			_server._clients[ID] = Null
 		End
 	End
@@ -185,6 +182,12 @@ End
 Class Client Extends ClientBase
 	
 	Field GotPacketHook:Void( packet:Packet )
+	Field _connecting:Int
+	
+	Property Connecting:Bool()
+		
+		Return _connecting
+	End
 	
 	Method New()
 		
@@ -201,15 +204,23 @@ Class Client Extends ClientBase
 	
 	Method Connect:Bool( host:String, port:UInt )
 		
+		_connecting = True
+		
 		_socket = Socket.Connect( host, port )
 		
-		If Not _socket Return False
+		If Not _socket Then
+			
+			_connecting = False
+			Return False
+		Endif
 		
 		_socket.SetOption( "TCP_NODELAY",1 )
 		
 		_stream = New SocketStream( _socket )
 		
 		_readFiber = New Fiber( ReadLoop )
+		
+		_connecting = False
 		
 		Return True
 	End
@@ -219,7 +230,7 @@ Class Client Extends ClientBase
 		GotPacketHook( packet )
 	End
 	
-	Method SendPacket()
+	Method SendPacket() Override
 		
 		_packet.SendHook += SendBuffer
 		_packet.Send()
@@ -273,6 +284,22 @@ Class ClientBase
 		Return _packet
 	End
 	
+	Method SendPacket() Virtual
+	End
+	
+	Method Close( reason:String = "" ) Virtual
+		
+		If _readFiber Then _readFiber.Terminate()
+		
+		_readFiber = Null
+		
+		If _stream Then _stream.Close()
+		If _socket Then _socket.Close()
+		
+		_stream = Null
+		_socket = Null
+	End
+	
 	Method SetProperty( key:Int, value:Variant )
 		
 		SetProperty( String( key ), value )
@@ -286,6 +313,11 @@ Class ClientBase
 		Endif
 		
 		_customProperties.Set( key, value )
+	End
+	
+	Method GetProperty:Variant( key:Int )
+		
+		Return GetProperty( String( key ) )
 	End
 	
 	Method GetProperty:Variant( key:String )
@@ -302,16 +334,6 @@ Class ClientBase
 		
 		_packet = New Packet( packetID )
 		Return _packet
-	End
-	
-	Method Close( reason:String = "" ) Virtual
-		
-		
-		If _stream Then _stream.Close()
-		If _socket Then _socket.Close()
-		
-		_stream = Null
-		_socket = Null
 	End
 	
 	Method ReadLoop()

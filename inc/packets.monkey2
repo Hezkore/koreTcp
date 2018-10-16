@@ -56,6 +56,8 @@ Class PacketConstructor
 			
 			If _expectedSize And _packet._offset >= _expectedSize Then
 				
+				_packet._size = _expectedSize
+				
 				'Reset offset and return packet!
 				_packet._offset = Packet._dataOffset
 				CompleteHook( _packet, fromID )
@@ -77,14 +79,15 @@ Class Packet
 	
 	Private
 	
-		Global DefaultSize:Int = 512	'Default size for every buffer
-		Global _sizeOffset:UInt = 1	'Where in the buffer is size stored?
-		Global _dataOffset:UInt = 3	'Where does the packet data start?
+		Global DefaultSize:Int = 512'Default size for every buffer
+		Global _sizeOffset:UInt = 1	' Where in the buffer is size stored?
+		Global _dataOffset:UInt = 3	' Where does the packet data start?
 		
 		Field _id:UByte
 		Field _buffer:DataBuffer
-		Field _offset:UInt	'Next write position (in bytes)
-		Field _lastOffset:UInt	'Previous write size (in bytes)
+		Field _offset:UInt		' Next write position (in bytes)
+		Field _lastOffset:UInt	' Previous write size (in bytes)
+		Field _size:UInt		' Manually set size
 		
 		Method AddOffset( s:UByte )
 			
@@ -98,6 +101,13 @@ Class Packet
 	Property ID:UByte()
 		
 		Return _id
+	End
+	
+	Property Eof:Bool()
+		
+		If _offset >= _size Then Return True
+		
+		Return False
 	End
 	
 	Method New( id:UByte, useTmpSize:Bool = True )
