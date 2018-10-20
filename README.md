@@ -1,4 +1,4 @@
-# m2py.git
+# koreTcp.git
 Simple TCP client and server for Monkey 2
 
 ![](https://github.com/Hezkore/koreTcp/blob/master/tests/demo.png)
